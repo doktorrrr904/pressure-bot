@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: pressure-check
@@ -31,3 +32,8 @@ jobs:
           git config user.email "pressure-bot@users.noreply.github.com"
           git add state.json
           git diff --cached --quiet || (git commit -m "update state" && git push)
+
+      - name: Keep schedule alive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable pressure.yml --repo "${{ github.repository }}" || true
