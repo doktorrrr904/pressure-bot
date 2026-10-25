@@ -1,0 +1,39 @@
+name: Storm check
+
+on:
+  schedule:
+    - cron: "12,27,42,57 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: storm-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check geomagnetic activity and notify
+        run: python3 storm_check.py
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FORCE_REPORT: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
+
+      - name: Save state
+        run: |
+          git config user.name "pressure-bot"
+          git config user.email "pressure-bot@users.noreply.github.com"
+          git add storm_state.json
+          git diff --cached --quiet || (git commit -m "update storm state" && git pull --rebase origin "$GITHUB_REF_NAME" && git push)
+
+      - name: Keep schedule alive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable storm.yml --repo "${{ github.repository }}" || true
